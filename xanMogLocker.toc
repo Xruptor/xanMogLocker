@@ -1,6 +1,6 @@
 ## Interface: 80300
 ## Title: xanMogLocker
-## Notes: testing
+## Notes: View and save the transmog set of a inspected player.
 ## Author: Xruptor
 ## Version: 1.0
 ## OptionalDeps: tekDebug
