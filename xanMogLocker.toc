@@ -1,0 +1,15 @@
+## Interface: 80300
+## Title: xanMogLocker
+## Notes: testing
+## Author: Xruptor
+## Version: 1.0
+## OptionalDeps: tekDebug
+
+libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+libs\AceLocale-3.0\AceLocale-3.0.xml
+libs\AceEvent-3.0\AceEvent-3.0.xml
+
+locale\enUS.lua
+
+xanMogLocker.lua
