@@ -153,17 +153,33 @@ local SET_MODEL_PAN_AND_ZOOM_LIMITS = {
 	["Vulpera3"] = { maxZoom = 2.9605259895325, panMaxLeft = -0.26144406199455, panMaxRight = 0.30945864319801, panMaxTop = -0.07625275105238, panMaxBottom = -1.2928194999695 },
 }
 
+StaticPopupDialogs["XANMOGLOCKER_ALERT"] = {
+	text = "",
+	button1 = OKAY,
+	hasEditBox = false,
+	timeout = 5,
+	hideOnEscape = 1,
+	OnShow = function (self, msg)
+		self.text:SetText(msg)
+	end,
+	whileDead = 1,
+}
+
+local function showAlert(msg)
+	StaticPopup_Show("XANMOGLOCKER_ALERT", '', '', msg)
+end
+
 local function returnLocalizedSlot(slotID, slotToLocal)
 	if slotToLocal then return slotToLocalized[slotID] end
 	return transMogSlots[slotID] or localizedSlots[slotID]
 end
 
 local function getItemMatrix(itemID)
-	local name, link, quality, itemLevel, reqLevel, class, subClass, maxStack, equipSlot, icon, sellPrice, classID, subClassID, bindType, expansion, itemSetID, isReagent = GetItemInfo(itemID)
+	local name, itemLink, quality, itemLevel, reqLevel, class, subClass, maxStack, equipSlot, icon, sellPrice, classID, subClassID, bindType, expansion, itemSetID, isReagent = GetItemInfo(itemID)
 	if name then
 		return {
 			name = name,
-			link = link,
+			itemLink = itemLink,
 			quality = quality,
 			itemLevel = itemLevel,
 			reqLevel = reqLevel,
@@ -183,13 +199,61 @@ local function getItemMatrix(itemID)
 	end
 end
 
-local function itemSlotIcon(slotIndex, texture)
+local function itemSlotIcon(slotIndex, texture, itemLink)
 	if not slotIndex or not addon.itemSlots[slotIndex] then return end
 	--if the texture fails, then load our current character texture
 	addon.itemSlots[slotIndex].icon:SetTexture(texture or select(2, GetInventorySlotInfo(slotIndex)))
+	addon.itemSlots[slotIndex].itemLink = itemLink or nil
 end
 
-function addon:DoMogFrame()
+local function GetShortItemID(link)
+	if link then
+		if type(link) == "number" then link = tostring(link) end
+		return link:match("item:(%d+):") or link:match("^(%d+):") or link
+	end
+end
+
+local function saveOutfit(saveName)
+	if not XML_DB then showAlert(string.format(L.ErrorSave, 1)) end
+	if not saveName then showAlert(string.format(L.ErrorSave, 1)) end
+	
+	local storeOutfit = {}
+	
+	for i=1, #addon.itemPool do
+		local itemID = GetShortItemID(addon.itemPool[i].itemLink)
+		local slot = addon.itemPool[i].slot
+		if itemID and slot then
+			table.insert(storeOutfit, tostring(itemID)..";"..tostring(slot))
+		else
+			showAlert(string.format(L.ErrorSave, 2))
+			break
+		end
+	end
+	
+	table.insert(XML_DB, {name=saveName, outfit=storeOutfit, class=addon.InspectedClass})
+	showAlert(L.YesSave)
+end
+
+StaticPopupDialogs["XANMOGLOCKER_SAVEOUTFIT"] = {
+	text = L.SaveOutfit ,
+	button1 = "Save",
+	button2 = "Cancel",
+	hasEditBox = true,
+	timeout = 0,
+	hideOnEscape = 1,
+	OnAccept = function (self, data, data2)
+		local text = self.editBox:GetText()
+		if text == "" or string.len(text) < 1 then
+			showAlert(L.NoSave.."\n"..L.InvalidName)
+		else
+			saveOutfit(text)
+		end
+	end,
+	whileDead = 1,
+	maxLetters = 255,
+}
+
+function addon:SetupMogFrame()
 
 	addon:SetFrameStrata("DIALOG")
 	addon:SetToplevel(true)
@@ -223,7 +287,15 @@ function addon:DoMogFrame()
 
 	local function onEnter(self)
 		GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-		GameTooltip:SetText(returnLocalizedSlot(self.slot, true))
+		if self.itemLink then
+			if type(self.itemLink) == "number" then
+				GameTooltip:SetItemByID(self.itemLink)
+			else
+				GameTooltip:SetHyperlink(self.itemLink)
+			end
+		else
+			GameTooltip:SetText(returnLocalizedSlot(self.slot, true))
+		end
 	end
 		
 	addon.itemSlots = {}
@@ -254,15 +326,14 @@ function addon:DoMogFrame()
 	local model = CreateFrame("DressUpModel", nil, addon)
 	model:SetPoint("CENTER")
 	model:SetSize(300,400)
-	model:ClearModel()
 	model:SetUnit("player")
-	model:RefreshUnit()
+	model:Undress() --this is VERY important.  That way you don't have to load the armor twice for it to show
 	--model:SetModelScale(1)
 	model:SetPosition(0,0,0)
 	model.defaultPosX, model.defaultPosY, model.defaultPosZ, model.yaw = 0, 0, 0, 0
 	model:SetLight(true, false, -1, 0, 0, .7, .7, .7, .7, .6, 1, 1, 1)
 	addon.model = model
-	
+
 	--set the pan and zoom limits
 	--https://github.com/Gethe/wow-ui-source/blob/f836c162afa2ccb5e42ef4a6c386a438608f4dd3/AddOns/Blizzard_Collections/Blizzard_Wardrobe.lua
 	local _, race = UnitRace("player")
@@ -328,7 +399,36 @@ function addon:DoMogFrame()
 	modelbg:SetAllPoints(model);
 	modelbg:SetColorTexture(0.3, 0.3, 0.3, 0.2)
 
-	addon:Show()
+    local saveButton = CreateFrame("Button", nil, addon, "UIPanelButtonTemplate")
+	saveButton.Text:SetFontObject("GameFontNormal")
+	saveButton:SetWidth(80)
+	saveButton:SetHeight(30)
+    saveButton:SetText(L.Save)
+    saveButton:SetPoint("BOTTOMLEFT", 10, 13)
+    saveButton:SetScript("OnClick", function()
+		StaticPopup_Show("XANMOGLOCKER_SAVEOUTFIT")
+    end)
+	addon.saveButton = saveButton
+	
+    local loadButton = CreateFrame("Button", nil, addon, "UIPanelButtonTemplate")
+	loadButton.Text:SetFontObject("GameFontNormal")
+	loadButton:SetWidth(80)
+	loadButton:SetHeight(30)
+    loadButton:SetText(L.Load)
+    loadButton:SetPoint("BOTTOMRIGHT", -10, 13)
+    loadButton:SetScript("OnClick", function()
+		print('load')
+    end)
+	addon.loadButton = loadButton
+	
+	addon:HookScript("OnHide",function() 
+		if InspectFrame and InspectFrame:IsShown() then
+			--if you don't close it this way it still thinks it's open because it's a primary UI Frame from UIPanelWindows
+			HideUIPanel(InspectFrame)
+		end
+	end)
+	
+	addon:Hide()
 end
 
 function addon:PreviewItem(itemLink, slotIndex)
@@ -336,13 +436,8 @@ function addon:PreviewItem(itemLink, slotIndex)
 	local itemMatrix = getItemMatrix(itemLink)
 	if not itemMatrix then return end
 	
-	itemSlotIcon(returnLocalizedSlot(itemMatrix.equipSlot), itemMatrix.icon)
+	itemSlotIcon(returnLocalizedSlot(itemMatrix.equipSlot), itemMatrix.icon, itemLink)
 	addon.model:TryOn(itemLink, slotIndex)
-	
-	--https://github.com/Gethe/wow-ui-source/blob/356d028f9d245f6e75dc8a806deb3c38aa0aa77f/FrameXML/DressUpFrames.lua
-	
-	--playerActor:TryOn(appearanceSources[mainHandSlotID], "MAINHANDSLOT", mainHandEnchant);
-	--playerActor:TryOn(appearanceSources[secondaryHandSlotID], "SECONDARYHANDSLOT", offHandEnchant);
 	
 	-- --https://github.com/Gethe/wow-ui-source/blob/f836c162afa2ccb5e42ef4a6c386a438608f4dd3/AddOns/Blizzard_Collections/Blizzard_Wardrobe.lua
 	-- if ( event == "GET_ITEM_INFO_RECEIVED" ) then
@@ -356,23 +451,21 @@ function addon:PreviewItem(itemLink, slotIndex)
 		
 end
 
-function addon:LoadInspectedCharacter()
-
-	--this is for player
-	-- for i = 0, 19 do
-		-- local itemID = GetInventoryItemID("player", i)
-		-- if itemID then
-			-- local itemMatrix = getItemMatrix(itemID)
-			-- if itemMatrix then
-				-- --addon.model:TryOn(itemID, i)
-				-- --Debug(i, returnLocalizedSlot(i), itemMatrix.name, itemMatrix.equipSlot, itemMatrix.icon, returnLocalizedSlot(itemMatrix.equipSlot))
-				-- itemSlotIcon(returnLocalizedSlot(itemMatrix.equipSlot), itemMatrix.icon)
-			-- end
-		-- end
-	-- end
+function addon:UpdateModel(itemPool)
+	if not itemPool then return end
 	
-	--itemAppearanceModID
-	--doModelUpdate
+	--first lets clear them
+	for i, slotIndex in ipairs(transMogSlots) do
+		itemSlotIcon(slotIndex)
+	end
+	--load the items
+	for i=1, #itemPool do
+		addon:PreviewItem(itemPool[i].itemLink, itemPool[i].slot)
+	end
+end
+
+function addon:LoadInspectedCharacter()
+	local itemPool = {}
 	
 	local inspectSlots = C_TransmogCollection.GetInspectSources()
 	if not inspectSlots then return end
@@ -382,21 +475,27 @@ function addon:LoadInspectedCharacter()
 	
 	for i, sourceIndex in pairs(inspectSlots) do
 		if sourceIndex ~= NO_TRANSMOG_SOURCE_ID and i ~= mainHandSlotID and i ~= secondaryHandSlotID then
-			local _, _, _, _, _, link = C_TransmogCollection.GetAppearanceSourceInfo(sourceIndex)
-			if link then
-				addon:PreviewItem(link, i)
+			local _, _, _, _, _, itemLink = C_TransmogCollection.GetAppearanceSourceInfo(sourceIndex)
+			if itemLink then
+				--getItemInfo cache
+				local itemMatrix = getItemMatrix(itemLink)
+				table.insert(itemPool, {itemLink=itemLink, slot=i})
 			end
 		end
 	end
 
 	local MainHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID]))
-	addon:PreviewItem(MainHandSlot, mainHandSlotID)
-	
-	local SecondaryHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID]))
-	addon:PreviewItem(SecondaryHandSlot, secondaryHandSlotID)
-	
-	--addon.model:RefreshUnit()
+	if MainHandSlot then table.insert(itemPool, {itemLink=MainHandSlot, slot=mainHandSlotID}) end
 
+	local SecondaryHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID]))
+	if SecondaryHandSlot then table.insert(itemPool, {itemLink=SecondaryHandSlot, slot=secondaryHandSlotID}) end
+	
+	--store it for use in other areas
+	addon.itemPool = itemPool
+	
+	--display after 1 second, for some reason we have to force the TryOn twice.  I can't figure out why.  I think it has to do with ItemCache
+	C_Timer.After(0.2, function() addon:UpdateModel(itemPool) end)
+	
 	addon:Show()
 end
 
@@ -412,6 +511,7 @@ function addon:AddInspectButton()
 	button:SetPoint("TOPRIGHT", 110, 0)
 	button:SetScript("OnClick", function()
 		addon:LoadInspectedCharacter()
+		addon.InspectedClass = select(2, UnitClass("target")) or "Unknown"
 	end)
 end
 
@@ -426,13 +526,11 @@ function addon:ADDON_LOADED(event, addonName)
 	end
 end
 
-function addon:GET_ITEM_INFO_RECEIVED(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
-	--Debug(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
-end
-
 function addon:PLAYER_LOGIN()
 
-	addon:DoMogFrame()
+	XML_DB = XML_DB or {}
+	
+	addon:SetupMogFrame()
 	
 	if InspectFrame and not addon.inspectButton then
 		addon:AddInspectButton()
@@ -444,4 +542,3 @@ end
 
 addon:RegisterEvent("PLAYER_LOGIN")
 addon:RegisterEvent("ADDON_LOADED")
-addon:RegisterEvent("GET_ITEM_INFO_RECEIVED")
