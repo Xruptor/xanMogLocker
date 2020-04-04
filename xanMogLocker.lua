@@ -14,75 +14,30 @@ LibStub("AceEvent-3.0"):Embed(addon)
 
 local IsRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
-local transMogSlots = {
-	"HeadSlot",
-	"ShoulderSlot",
-	"BackSlot",
-	"ChestSlot",
-	"ShirtSlot",
-	"TabardSlot",
-	"WristSlot",
-	"HandsSlot",
-	"WaistSlot",
-	"LegsSlot",
-	"FeetSlot",
-	"MainHandSlot",
-	"SecondaryHandSlot",
-}
+--see slot diagram here https://wow.gamepedia.com/InventorySlotId
+--https://wow.gamepedia.com/InventorySlotName
 
-local localizedSlots = {
-	INVTYPE_HEAD = "HeadSlot",
-	INVTYPE_SHOULDER = "ShoulderSlot",
-	INVTYPE_CLOAK = "BackSlot",
-	INVTYPE_CHEST = "ChestSlot",
-	INVTYPE_ROBE = "ChestSlot",
-	INVTYPE_BODY = "ShirtSlot",
-	INVTYPE_TABARD = "TabardSlot",
-	INVTYPE_WRIST = "WristSlot",
-	INVTYPE_HAND = "HandsSlot",
-	INVTYPE_WAIST = "WaistSlot",
-	INVTYPE_LEGS = "LegsSlot",
-	INVTYPE_FEET = "FeetSlot",
-	INVTYPE_2HWEAPON = "MainHandSlot",
-	INVTYPE_WEAPON = "MainHandSlot",
-	INVTYPE_WEAPONMAINHAND = "MainHandSlot",
-	INVTYPE_WEAPONOFFHAND = "SecondaryHandSlot",
-	INVTYPE_RANGED = "MainHandSlot",
-	INVTYPE_RANGEDRIGHT = "MainHandSlot",
-	INVTYPE_SHIELD = "SecondaryHandSlot",
-	INVTYPE_HOLDABLE = "SecondaryHandSlot",
-}
-
-local localizedTransMogSlots = {
-	[INVSLOT_HEAD] = "HeadSlot",
-	[INVSLOT_SHOULDER] = "ShoulderSlot",
-	[INVSLOT_BACK] = "BackSlot",
-	[INVSLOT_CHEST] = "ChestSlot",
-	[INVSLOT_BODY] = "ShirtSlot",
-	[INVSLOT_TABARD] = "TabardSlot",
-	[INVSLOT_WRIST] = "WristSlot",
-	[INVSLOT_HAND] = "HandsSlot",
-	[INVSLOT_WAIST] = "WaistSlot",
-	[INVSLOT_LEGS] = "LegsSlot",
-	[INVSLOT_FEET] = "FeetSlot",
-	[INVSLOT_MAINHAND] = "MainHandSlot",
-	[INVSLOT_OFFHAND] = "SecondaryHandSlot",
-}
-
-local slotToLocalized = {
-	["HeadSlot"] = INVTYPE_HEAD,
-	["ShoulderSlot"] = INVTYPE_SHOULDER,
-	["BackSlot"] = INVTYPE_CLOAK,
-	["ChestSlot"] = INVTYPE_CHEST,
-	["ShirtSlot"] = INVTYPE_BODY,
-	["TabardSlot"] = INVTYPE_TABARD,
-	["WristSlot"] = INVTYPE_WRIST,
-	["HandsSlot"] = INVTYPE_HAND,
-	["WaistSlot"] = INVTYPE_WAIST,
-	["LegsSlot"] = INVTYPE_LEGS,
-	["FeetSlot"] = INVTYPE_FEET,
-	["MainHandSlot"] = INVTYPE_WEAPONMAINHAND,
-	["SecondaryHandSlot"] = INVTYPE_WEAPONOFFHAND,
+local transMogSlots = { 
+	[0] = {canTransMog = false, globalString = "Ammo", invSlotName = "AMMOSLOT", slotID = INVSLOT_AMMO},
+	[1] = {canTransMog = true, globalString = "Head", invSlotName = "HEADSLOT", slotID = INVSLOT_HEAD, buttonPos = 1},
+	[2] = {canTransMog = false, globalString = "Neck", invSlotName = "NECKSLOT", slotID = INVSLOT_NECK},
+	[3] = {canTransMog = true, globalString = "Shoulders", invSlotName = "SHOULDERSLOT", slotID = INVSLOT_SHOULDER, buttonPos = 2},
+	[4] = {canTransMog = true, globalString = "Shirt", invSlotName = "SHIRTSLOT", slotID = INVSLOT_BODY, buttonPos = 5},
+	[5] = {canTransMog = true, globalString = "Chest", invSlotName = "CHESTSLOT", slotID = INVSLOT_CHEST, buttonPos = 4},
+	[6] = {canTransMog = true, globalString = "Waist", invSlotName = "WAISTSLOT", slotID = INVSLOT_WAIST, buttonPos = 9},
+	[7] = {canTransMog = true, globalString = "Legs", invSlotName = "LEGSSLOT", slotID = INVSLOT_LEGS, buttonPos = 10},
+	[8] = {canTransMog = true, globalString = "Feet", invSlotName = "FEETSLOT", slotID = INVSLOT_FEET, buttonPos = 11},
+	[9] = {canTransMog = true, globalString = "Wrist", invSlotName = "WRISTSLOT", slotID = INVSLOT_WRIST, buttonPos = 7},
+	[10] = {canTransMog = true, globalString = "Hands", invSlotName = "HANDSSLOT", slotID = INVSLOT_HAND, buttonPos = 8},
+	[11] = {canTransMog = false, globalString = "Finger", invSlotName = "FINGER0SLOT", slotID = INVSLOT_FINGER1},
+	[12] = {canTransMog = false, globalString = "Finger", invSlotName = "FINGER1SLOT", slotID = INVSLOT_FINGER2},
+	[13] = {canTransMog = false, globalString = "Trinket", invSlotName = "TRINKET0SLOT", slotID = INVSLOT_TRINKET1},
+	[14] = {canTransMog = false, globalString = "Trinket", invSlotName = "TRINKET1SLOT", slotID = INVSLOT_TRINKET2},
+	[15] = {canTransMog = true, globalString = "Back", invSlotName = "BACKSLOT", slotID = INVSLOT_BACK, buttonPos = 3},
+	[16] = {canTransMog = true, globalString = "Main Hand", invSlotName = "MAINHANDSLOT", slotID = INVSLOT_MAINHAND, buttonPos = 12},
+	[17] = {canTransMog = true, globalString = "Off Hand", invSlotName = "SECONDARYHANDSLOT", slotID = INVSLOT_OFFHAND, buttonPos = 13},
+	[18] = {canTransMog = false, globalString = "Ranged", invSlotName = "RANGEDSLOT", slotID = INVSLOT_RANGED},
+	[19] = {canTransMog = true, globalString = "Tabard", invSlotName = "TABARDSLOT", slotID = INVSLOT_TABARD, buttonPos = 6},
 }
 
 local RaceIDs = {
@@ -169,11 +124,6 @@ local function showAlert(msg)
 	StaticPopup_Show("XANMOGLOCKER_ALERT", '', '', msg)
 end
 
-local function returnLocalizedSlot(slotID, slotToLocal)
-	if slotToLocal then return slotToLocalized[slotID] end
-	return transMogSlots[slotID] or localizedSlots[slotID]
-end
-
 local function getItemMatrix(itemID)
 	local name, itemLink, quality, itemLevel, reqLevel, class, subClass, maxStack, equipSlot, icon, sellPrice, classID, subClassID, bindType, expansion, itemSetID, isReagent = GetItemInfo(itemID)
 	if name then
@@ -199,18 +149,30 @@ local function getItemMatrix(itemID)
 	end
 end
 
-local function itemSlotIcon(slotIndex, texture, itemLink)
-	if not slotIndex or not addon.itemSlots[slotIndex] then return end
+local function itemSlotIcon(slotID, texture, itemLink)
+	if not slotID or not addon.itemSlots[slotID] then return end
 	--if the texture fails, then load our current character texture
-	addon.itemSlots[slotIndex].icon:SetTexture(texture or select(2, GetInventorySlotInfo(slotIndex)))
-	addon.itemSlots[slotIndex].itemLink = itemLink or nil
+	print('iconslot', texture)
+	addon.itemSlots[slotID].icon:SetTexture(texture or select(2, GetInventorySlotInfo( transMogSlots[slotID].invSlotName )))
+	addon.itemSlots[slotID].itemLink = itemLink or nil
+	
+	--Classic Relic Slot
+	-- local textureName = button.backgroundTextureName;
+	-- if ( button.checkRelic and UnitHasRelicSlot(unit) ) then
+		-- textureName = "Interface\\Paperdoll\\UI-PaperDoll-Slot-Relic.blp";
+	-- end
 end
 
 local function GetShortItemID(link)
 	if link then
 		if type(link) == "number" then link = tostring(link) end
-		return link:match("item:(%d+):") or link:match("^(%d+):") or link
+		--transmogillusion and transmogappearance do not have a trailing colon after the itemID
+		return link:match("item:(%d+):") or link:match("transmogillusion:(%d+)") or link:match("transmogappearance:(%d+)") or link:match("^(%d+):") or link	
 	end
+end
+
+local function GetIllusionID(link)
+	return link:match("transmogillusion:(%d+)") or nil
 end
 
 local function saveOutfit(saveName)
@@ -222,8 +184,14 @@ local function saveOutfit(saveName)
 	for i=1, #addon.itemPool do
 		local itemID = GetShortItemID(addon.itemPool[i].itemLink)
 		local slot = addon.itemPool[i].slot
+		local transMogID = addon.itemPool[i].transMogID
 		if itemID and slot then
-			table.insert(storeOutfit, tostring(itemID)..";"..tostring(slot))
+			if transMogID then
+				transMogID = ";"..tostring(transMogID)
+			else
+				transMogID = ""
+			end
+			table.insert(storeOutfit, tostring(itemID)..";"..tostring(slot)..transMogID)
 		else
 			showAlert(string.format(L.ErrorSave, 2))
 			break
@@ -299,9 +267,19 @@ function addon:SetupMogFrame()
 	end
 		
 	addon.itemSlots = {}
-	for i, slotIndex in ipairs(transMogSlots) do
+	
+	--lets grab only the slots we can transmog and order them
+	local buttonSlots = {}
+	for i, mogSlot in ipairs(transMogSlots) do
+		if mogSlot.canTransMog then
+			table.insert(buttonSlots, mogSlot)
+		end
+	end
+	table.sort(buttonSlots, function(a,b) return (a.buttonPos < b.buttonPos) end) --order by buttonPos
+
+	for i, btnData in ipairs(buttonSlots) do
 		local slot = CreateFrame("ItemButton", nil, addon)
-		slot.slot = slotIndex
+		slot.info = btnData
 		if i == 1 then
 			slot:SetPoint("TOPLEFT", addon, "TOPLEFT", 20, -85)
 		elseif i == 8 then
@@ -310,17 +288,17 @@ function addon:SetupMogFrame()
 			if i == 12 then
 				slot:SetPoint("CENTER", addon, "CENTER", -15, -235)
 			else
-				slot:SetPoint("RIGHT", addon.itemSlots[returnLocalizedSlot(i-1)], "RIGHT", 45, 0)
+				slot:SetPoint("RIGHT", addon.itemSlots[ buttonSlots[i-1].slotID ], "RIGHT", 45, 0)
 			end
 		else
-			slot:SetPoint("TOP", addon.itemSlots[returnLocalizedSlot(i-1)], "BOTTOM", 0, -8)
+			slot:SetPoint("TOP", addon.itemSlots[ buttonSlots[i-1].slotID ], "BOTTOM", 0, -8)
 		end
 		slot:RegisterForClicks("AnyUp")
 		slot:SetScript("OnEnter", onEnter)
 		slot:SetScript("OnLeave", GameTooltip_Hide)
 		slot.OnEnter = onEnter
-		addon.itemSlots[slotIndex] = slot
-		itemSlotIcon(slotIndex)
+		addon.itemSlots[btnData.slotID] = slot
+		itemSlotIcon(btnData.slotID)
 	end
 	
 	local model = CreateFrame("DressUpModel", nil, addon)
@@ -431,39 +409,34 @@ function addon:SetupMogFrame()
 	addon:Hide()
 end
 
-function addon:PreviewItem(itemLink, slotIndex)
+function addon:PreviewItem(itemLink, slotID, transMogID)
 	if not itemLink then return end
 	local itemMatrix = getItemMatrix(itemLink)
 	if not itemMatrix then return end
 	
-	itemSlotIcon(returnLocalizedSlot(itemMatrix.equipSlot), itemMatrix.icon, itemLink)
-	addon.model:TryOn(itemLink, slotIndex)
-	
-	-- --https://github.com/Gethe/wow-ui-source/blob/f836c162afa2ccb5e42ef4a6c386a438608f4dd3/AddOns/Blizzard_Collections/Blizzard_Wardrobe.lua
-	-- if ( event == "GET_ITEM_INFO_RECEIVED" ) then
-		-- local itemID = ...;
-		-- for itemFrame in self.DetailsFrame.itemFramesPool:EnumerateActive() do
-			-- if ( itemFrame.itemID == itemID ) then
-				-- self:SetItemFrameQuality(itemFrame);
-				-- break;
-			-- end
-		-- end
-		
+	itemSlotIcon(slotID, itemMatrix.icon, itemLink)
+	--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
+	addon.model:TryOn(transMogID, slotID)	
 end
 
 function addon:UpdateModel(itemPool)
 	if not itemPool then return end
 	
+	addon.model:Undress() --make sure they are undressed
+	
 	--first lets clear them
-	for i, slotIndex in ipairs(transMogSlots) do
-		itemSlotIcon(slotIndex)
+	for i, mogSlot in ipairs(transMogSlots) do
+		if mogSlot.canTransMog then
+			itemSlotIcon(mogSlot.slotID)
+		end
 	end
 	--load the items
 	for i=1, #itemPool do
-		addon:PreviewItem(itemPool[i].itemLink, itemPool[i].slot)
+		addon:PreviewItem(itemPool[i].itemLink, itemPool[i].slot, itemPool[i].transMogID)
 	end
 end
 
+--https://github.com/Gethe/wow-ui-source/blob/356d028f9d245f6e75dc8a806deb3c38aa0aa77f/FrameXML/DressUpFrames.lua
 function addon:LoadInspectedCharacter()
 	local itemPool = {}
 	
@@ -475,20 +448,40 @@ function addon:LoadInspectedCharacter()
 	
 	for i, sourceIndex in pairs(inspectSlots) do
 		if sourceIndex ~= NO_TRANSMOG_SOURCE_ID and i ~= mainHandSlotID and i ~= secondaryHandSlotID then
-			local _, _, _, _, _, itemLink = C_TransmogCollection.GetAppearanceSourceInfo(sourceIndex)
+			local categoryID, visualID, canEnchant, icon, _, itemLink, transmogLink = C_TransmogCollection.GetAppearanceSourceInfo(sourceIndex)
 			if itemLink then
-				--getItemInfo cache
-				local itemMatrix = getItemMatrix(itemLink)
-				table.insert(itemPool, {itemLink=itemLink, slot=i})
+				--Debug(categoryID, visualID, sourceIndex, GetShortItemID(sourceIndex), itemLink, GetShortItemID(itemLink), transmogLink, GetShortItemID(transmogLink))
+				Debug(i, icon, categoryID, itemLink)
+				--categoryID is also slotID
+				table.insert(itemPool, {itemLink=itemLink, slot=i, transMogID=sourceIndex})
 			end
 		end
 	end
 
-	local MainHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID]))
-	if MainHandSlot then table.insert(itemPool, {itemLink=MainHandSlot, slot=mainHandSlotID}) end
+	--playerActor:GetSlotTransmogSources(slotID);
+	
+	--TRANSMOGRIFIED = "Transmogrified to:\n%s";
+	--TRANSMOGRIFIED_ENCHANT = "Illusion: %s";
+	--TRANSMOGRIFIED_HEADER = "Transmogrified to:";
 
+	--TransmogUtil.GetWeaponInfoForEnchant(slot)
+	--weaponEnchantID, name, transmogIllusionLink = C_TransmogCollection.GetIllusionSourceInfo(sourceID)
+	--"|cffff80ff|Htransmogillusion:5862|h[Titanguard]|h|r"
+	--transmogappearance : sourceID
+	--actor:TryOn(appearanceSourceID, slot, illusionSourceID);
+
+	--GetIllusionID(link)
+	local MainHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID]))
+	if MainHandSlot then
+		table.insert(itemPool, {itemLink=MainHandSlot, slot=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID]})
+	end
+	--Debug('MainHandSlot', MainHandSlot, mainHandSlotID)
+	
 	local SecondaryHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID]))
-	if SecondaryHandSlot then table.insert(itemPool, {itemLink=SecondaryHandSlot, slot=secondaryHandSlotID}) end
+	if SecondaryHandSlot then
+		table.insert(itemPool, {itemLink=SecondaryHandSlot, slot=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID]})
+	end
+	--Debug('SecondaryHandSlot', SecondaryHandSlot, secondaryHandSlotID)
 	
 	--store it for use in other areas
 	addon.itemPool = itemPool
