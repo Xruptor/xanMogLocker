@@ -152,27 +152,27 @@ end
 local function itemSlotIcon(slotID, texture, itemLink)
 	if not slotID or not addon.itemSlots[slotID] then return end
 	--if the texture fails, then load our current character texture
-	print('iconslot', texture)
-	addon.itemSlots[slotID].icon:SetTexture(texture or select(2, GetInventorySlotInfo( transMogSlots[slotID].invSlotName )))
-	addon.itemSlots[slotID].itemLink = itemLink or nil
-	
-	--Classic Relic Slot
-	-- local textureName = button.backgroundTextureName;
-	-- if ( button.checkRelic and UnitHasRelicSlot(unit) ) then
-		-- textureName = "Interface\\Paperdoll\\UI-PaperDoll-Slot-Relic.blp";
-	-- end
+	local slotTexture = select(2, GetInventorySlotInfo( transMogSlots[slotID].invSlotName ))
+	addon.itemSlots[slotID].icon:SetTexture(texture or slotTexture)
+	addon.itemSlots[slotID].itemLink = itemLink
+	addon.itemSlots[slotID].slotName = _G[transMogSlots[slotID].invSlotName] --grab it as a globalString
 end
 
 local function GetShortItemID(link)
 	if link then
 		if type(link) == "number" then link = tostring(link) end
-		--transmogillusion and transmogappearance do not have a trailing colon after the itemID
-		return link:match("item:(%d+):") or link:match("transmogillusion:(%d+)") or link:match("transmogappearance:(%d+)") or link:match("^(%d+):") or link	
+		return link:match("item:(%d+):") or link:match("^(%d+):") or link	
 	end
 end
 
 local function GetIllusionID(link)
+	--transmogillusion and transmogappearance do not have a trailing colon after the itemID
 	return link:match("transmogillusion:(%d+)") or nil
+end
+
+local function GetTransMogID(link)
+	--transmogillusion and transmogappearance do not have a trailing colon after the itemID
+	return link:match("transmogappearance:(%d+)") or nil
 end
 
 local function saveOutfit(saveName)
@@ -183,15 +183,10 @@ local function saveOutfit(saveName)
 	
 	for i=1, #addon.itemPool do
 		local itemID = GetShortItemID(addon.itemPool[i].itemLink)
-		local slot = addon.itemPool[i].slot
+		local slotID = addon.itemPool[i].slotID
 		local transMogID = addon.itemPool[i].transMogID
-		if itemID and slot then
-			if transMogID then
-				transMogID = ";"..tostring(transMogID)
-			else
-				transMogID = ""
-			end
-			table.insert(storeOutfit, tostring(itemID)..";"..tostring(slot)..transMogID)
+		if itemID and slotID and transMogID then
+			table.insert(storeOutfit, tostring(itemID)..";"..tostring(slotID)..";"..tostring(transMogID))
 		else
 			showAlert(string.format(L.ErrorSave, 2))
 			break
@@ -262,7 +257,7 @@ function addon:SetupMogFrame()
 				GameTooltip:SetHyperlink(self.itemLink)
 			end
 		else
-			GameTooltip:SetText(returnLocalizedSlot(self.slot, true))
+			GameTooltip:SetText(self.slotName)
 		end
 	end
 		
@@ -409,16 +404,6 @@ function addon:SetupMogFrame()
 	addon:Hide()
 end
 
-function addon:PreviewItem(itemLink, slotID, transMogID)
-	if not itemLink then return end
-	local itemMatrix = getItemMatrix(itemLink)
-	if not itemMatrix then return end
-	
-	itemSlotIcon(slotID, itemMatrix.icon, itemLink)
-	--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
-	addon.model:TryOn(transMogID, slotID)	
-end
-
 function addon:UpdateModel(itemPool)
 	if not itemPool then return end
 	
@@ -432,7 +417,11 @@ function addon:UpdateModel(itemPool)
 	end
 	--load the items
 	for i=1, #itemPool do
-		addon:PreviewItem(itemPool[i].itemLink, itemPool[i].slot, itemPool[i].transMogID)
+		itemSlotIcon(itemPool[i].slotID, itemPool[i].icon, itemPool[i].itemLink)
+		--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
+		--additional the secondary parameter allows you to load directly into a slot like, "MAINHANDSLOT" or "SECONDARYHANDSLOT"
+		addon.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName)
+		--Debug("TryOn", UnitName("target"), itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].slotID, itemPool[i].itemLink, itemPool[i].icon)
 	end
 end
 
@@ -450,39 +439,23 @@ function addon:LoadInspectedCharacter()
 		if sourceIndex ~= NO_TRANSMOG_SOURCE_ID and i ~= mainHandSlotID and i ~= secondaryHandSlotID then
 			local categoryID, visualID, canEnchant, icon, _, itemLink, transmogLink = C_TransmogCollection.GetAppearanceSourceInfo(sourceIndex)
 			if itemLink then
-				--Debug(categoryID, visualID, sourceIndex, GetShortItemID(sourceIndex), itemLink, GetShortItemID(itemLink), transmogLink, GetShortItemID(transmogLink))
-				Debug(i, icon, categoryID, itemLink)
+				--Debug(categoryID, visualID, icon, sourceIndex, GetShortItemID(sourceIndex), itemLink, GetShortItemID(itemLink))
 				--categoryID is also slotID
-				table.insert(itemPool, {itemLink=itemLink, slot=i, transMogID=sourceIndex})
+				table.insert(itemPool, {itemLink=itemLink, slotID=i, transMogID=sourceIndex, icon=icon})
 			end
 		end
 	end
 
-	--playerActor:GetSlotTransmogSources(slotID);
-	
-	--TRANSMOGRIFIED = "Transmogrified to:\n%s";
-	--TRANSMOGRIFIED_ENCHANT = "Illusion: %s";
-	--TRANSMOGRIFIED_HEADER = "Transmogrified to:";
-
-	--TransmogUtil.GetWeaponInfoForEnchant(slot)
-	--weaponEnchantID, name, transmogIllusionLink = C_TransmogCollection.GetIllusionSourceInfo(sourceID)
-	--"|cffff80ff|Htransmogillusion:5862|h[Titanguard]|h|r"
-	--transmogappearance : sourceID
-	--actor:TryOn(appearanceSourceID, slot, illusionSourceID);
-
-	--GetIllusionID(link)
-	local MainHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID]))
-	if MainHandSlot then
-		table.insert(itemPool, {itemLink=MainHandSlot, slot=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID]})
+	local _, _, _, mainHandIcon, _, mainHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID])
+	if mainHandLink then
+		table.insert(itemPool, {itemLink=mainHandLink, slotID=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID], icon=mainHandIcon})
 	end
-	--Debug('MainHandSlot', MainHandSlot, mainHandSlotID)
 	
-	local SecondaryHandSlot = select(6, C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID]))
-	if SecondaryHandSlot then
-		table.insert(itemPool, {itemLink=SecondaryHandSlot, slot=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID]})
+	local _, _, _, secondaryHandIcon, _, secondaryHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID])
+	if secondaryHandLink then
+		table.insert(itemPool, {itemLink=secondaryHandLink, slotID=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID], icon=secondaryHandIcon})
 	end
-	--Debug('SecondaryHandSlot', SecondaryHandSlot, secondaryHandSlotID)
-	
+
 	--store it for use in other areas
 	addon.itemPool = itemPool
 	
