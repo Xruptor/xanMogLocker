@@ -185,8 +185,14 @@ local function saveOutfit(saveName)
 		local itemID = GetShortItemID(addon.itemPool[i].itemLink)
 		local slotID = addon.itemPool[i].slotID
 		local transMogID = addon.itemPool[i].transMogID
+		local illusionID = addon.itemPool[i].illusionID
+	
 		if itemID and slotID and transMogID then
-			table.insert(storeOutfit, tostring(itemID)..";"..tostring(slotID)..";"..tostring(transMogID))
+			if illusionID then
+				table.insert(storeOutfit, tostring(itemID)..";"..tostring(slotID)..";"..tostring(transMogID)..";"..tostring(illusionID))
+			else
+				table.insert(storeOutfit, tostring(itemID)..";"..tostring(slotID)..";"..tostring(transMogID))
+			end
 		else
 			showAlert(string.format(L.ErrorSave, 2))
 			break
@@ -420,7 +426,7 @@ function addon:UpdateModel(itemPool)
 		itemSlotIcon(itemPool[i].slotID, itemPool[i].icon, itemPool[i].itemLink)
 		--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
 		--additional the secondary parameter allows you to load directly into a slot like, "MAINHANDSLOT" or "SECONDARYHANDSLOT"
-		addon.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName)
+		addon.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
 		--Debug("TryOn", UnitName("target"), itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].slotID, itemPool[i].itemLink, itemPool[i].icon)
 	end
 end
@@ -429,9 +435,9 @@ end
 function addon:LoadInspectedCharacter()
 	local itemPool = {}
 	
-	local inspectSlots = C_TransmogCollection.GetInspectSources()
+	local inspectSlots, mainHandEnchant, offHandEnchant = C_TransmogCollection.GetInspectSources()
 	if not inspectSlots then return end
-	
+
 	local mainHandSlotID = GetInventorySlotInfo("MAINHANDSLOT")
 	local secondaryHandSlotID = GetInventorySlotInfo("SECONDARYHANDSLOT")
 	
@@ -446,14 +452,23 @@ function addon:LoadInspectedCharacter()
 		end
 	end
 
+    --TRANSMOGRIFIED = "Transmogrified to:\n%s";
+    --TRANSMOGRIFIED_ENCHANT = "Illusion: %s";
+    --TRANSMOGRIFIED_HEADER = "Transmogrified to:";
+
+	--https://wow.gamepedia.com/WeaponEnchantID
+	--we don't want to store a ILLUSION enchant if it's zero
+	if mainHandEnchant == 0 then mainHandEnchant = nil end
+	if offHandEnchant == 0 then offHandEnchant = nil end
+
 	local _, _, _, mainHandIcon, _, mainHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID])
 	if mainHandLink then
-		table.insert(itemPool, {itemLink=mainHandLink, slotID=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID], icon=mainHandIcon})
+		table.insert(itemPool, {itemLink=mainHandLink, slotID=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID], icon=mainHandIcon, illusionID=mainHandEnchant})
 	end
 	
 	local _, _, _, secondaryHandIcon, _, secondaryHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID])
 	if secondaryHandLink then
-		table.insert(itemPool, {itemLink=secondaryHandLink, slotID=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID], icon=secondaryHandIcon})
+		table.insert(itemPool, {itemLink=secondaryHandLink, slotID=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID], icon=secondaryHandIcon, illusionID=offHandEnchant})
 	end
 
 	--store it for use in other areas
