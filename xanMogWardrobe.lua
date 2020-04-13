@@ -9,6 +9,7 @@ local function Debug(...)
     if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
 end
 
+local AceGUI = LibStub("AceGUI-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 LibStub("AceEvent-3.0"):Embed(addon)
 
@@ -157,7 +158,10 @@ end
 --HandleModifiedItemClick
 
 local function itemSlotIcon(slotID, texture, itemLink, illusionID)
-	if not slotID or not addon.itemSlots[slotID] then return end
+	if not slotID or not addon.WardrobeFrame.itemSlots or not addon.WardrobeFrame.itemSlots[slotID] then return end
+	
+	local itemSlots = addon.WardrobeFrame.itemSlots
+	
 	--check for illusions
 	if illusionID or slotID == MAINHANDSLOT_ENCHANT or slotID == SECONDARYHANDSLOT_ENCHANT then
 		local tmpSlot
@@ -171,17 +175,17 @@ local function itemSlotIcon(slotID, texture, itemLink, illusionID)
 		if not tmpSlot then return end
 		
 		--set the default no enchant cancel image
-		addon.itemSlots[tmpSlot].icon:SetTexture("Interface\\Transmogrify\\Textures.png")
-		addon.itemSlots[tmpSlot].icon:SetTexCoord(0.28906250, 0.55468750, 0.51171875, 0.57812500);
-		addon.itemSlots[tmpSlot].slotName = WEAPON_ENCHANTMENT
-		addon.itemSlots[tmpSlot].itemLink = nil --do not do a link, instead show illusion name
+		itemSlots[tmpSlot].icon:SetTexture("Interface\\Transmogrify\\Textures.png")
+		itemSlots[tmpSlot].icon:SetTexCoord(0.28906250, 0.55468750, 0.51171875, 0.57812500);
+		itemSlots[tmpSlot].slotName = WEAPON_ENCHANTMENT
+		itemSlots[tmpSlot].itemLink = nil --do not do a link, instead show illusion name
 		
 		if illusionID then
 			local visualID, name, transmogIllusionLink = C_TransmogCollection.GetIllusionSourceInfo(illusionID)
 			if name and transmogIllusionLink then
-				addon.itemSlots[tmpSlot].icon:SetTexture(134941) --put the enchant scroll picture
-				addon.itemSlots[tmpSlot].icon:SetTexCoord(0,1,0,1) --you have to use this to reset the texture coords
-				addon.itemSlots[tmpSlot].slotName = string.format(TRANSMOGRIFIED_ENCHANT, name)
+				itemSlots[tmpSlot].icon:SetTexture(134941) --put the enchant scroll picture
+				itemSlots[tmpSlot].icon:SetTexCoord(0,1,0,1) --you have to use this to reset the texture coords
+				itemSlots[tmpSlot].slotName = string.format(TRANSMOGRIFIED_ENCHANT, name)
 			end
 		else
 			--we don't have an illusion which means we probably used the dummy slots MAINHANDSLOT_ENCHANT and SECONDARYHANDSLOT_ENCHANT
@@ -190,9 +194,9 @@ local function itemSlotIcon(slotID, texture, itemLink, illusionID)
 	end
 	--if the texture fails, then load our current character texture
 	local slotTexture = select(2, GetInventorySlotInfo( transMogSlots[slotID].invSlotName ))
-	addon.itemSlots[slotID].icon:SetTexture(texture or slotTexture)
-	addon.itemSlots[slotID].itemLink = itemLink
-	addon.itemSlots[slotID].slotName = _G[transMogSlots[slotID].invSlotName] --grab it as a globalString
+	itemSlots[slotID].icon:SetTexture(texture or slotTexture)
+	itemSlots[slotID].itemLink = itemLink
+	itemSlots[slotID].slotName = _G[transMogSlots[slotID].invSlotName] --grab it as a globalString
 end
 
 local function GetShortItemID(link)
@@ -218,11 +222,13 @@ local function saveOutfit(saveName)
 	
 	local storeOutfit = {}
 	
-	for i=1, #addon.itemPool do
-		local itemID = GetShortItemID(addon.itemPool[i].itemLink)
-		local slotID = addon.itemPool[i].slotID
-		local transMogID = addon.itemPool[i].transMogID
-		local illusionID = addon.itemPool[i].illusionID
+	local itemPool = addon.WardrobeFrame.itemPool
+	
+	for i=1, #itemPool do
+		local itemID = GetShortItemID(itemPool[i].itemLink)
+		local slotID = itemPool[i].slotID
+		local transMogID = itemPool[i].transMogID
+		local illusionID = itemPool[i].illusionID
 	
 		if itemID and slotID and transMogID then
 			if illusionID then
@@ -261,35 +267,22 @@ StaticPopupDialogs["XANMOGWARDROBE_SAVEOUTFIT"] = {
 
 function addon:SetupMogFrame()
 
-	addon:SetFrameStrata("DIALOG")
-	addon:SetToplevel(true)
-	addon:EnableMouse(true)
-	addon:EnableMouseWheel(true)
-	addon:SetMovable(true)
-	addon:SetClampedToScreen(true)
-	addon:SetWidth(450)
-	addon:SetHeight(570)
+	local addonFrame = AceGUI:Create("Window")
+	local parentFrame = addonFrame.frame
 	
-	addon:SetBackdrop({
-			bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-			edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-			tile = true,
-			tileSize = 16,
-			edgeSize = 32,
-			insets = { left = 5, right = 5, top = 5, bottom = 5 }
-	})
-
-	addon:SetBackdropColor(0,0,0,0.6)
-	addon:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-
-	local closeButton = CreateFrame("Button", nil, addon, "UIPanelCloseButton");
-	closeButton:SetPoint("TOPRIGHT", addon, -15, -8);
-
-	local header = addon:CreateFontString("$parentHeaderText", "ARTWORK", "GameFontNormalSmall")
-	header:SetJustifyH("LEFT")
-	header:SetFontObject("GameFontNormal")
-	header:SetPoint("CENTER", addon, "TOP", 0, -20)
-	header:SetText(ADDON_NAME)
+	addon.WardrobeFrame = addonFrame
+	addon.WardrobeFrame.parentFrame = parentFrame
+	
+	addonFrame:SetTitle(ADDON_NAME)
+	addonFrame:SetWidth(450)
+	addonFrame:SetHeight(570)
+	
+	addonFrame:EnableResize(false)
+	parentFrame:EnableMouseWheel(true) --parent frame
+	parentFrame:SetClampedToScreen(true) --parent frame
+	parentFrame:SetFrameStrata("DIALOG")
+	
+	addonFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 
 	local function onEnter(self)
 		GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
@@ -304,7 +297,7 @@ function addon:SetupMogFrame()
 		end
 	end
 		
-	addon.itemSlots = {}
+	addonFrame.itemSlots = {}
 	
 	--lets grab only the slots we can transmog and order them
 	local buttonSlots = {}
@@ -316,48 +309,48 @@ function addon:SetupMogFrame()
 	table.sort(buttonSlots, function(a,b) return (a.buttonPos < b.buttonPos) end) --order by buttonPos
 
 	for i, btnData in ipairs(buttonSlots) do
-		local slot = CreateFrame("ItemButton", nil, addon)
+		local slot = CreateFrame("ItemButton", nil, parentFrame)
 		slot.info = btnData
 		if i == 1 then
-			slot:SetPoint("TOPLEFT", addon, "TOPLEFT", 20, -85)
+			slot:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 20, -85)
 		elseif i == 8 then
-			slot:SetPoint("TOPRIGHT", addon, "TOPRIGHT", -20, -85)
+			slot:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -20, -85)
 		elseif i >= 12 then
 			if i == 12 then
-				slot:SetPoint("CENTER", addon, "CENTER", -15, -232)
+				slot:SetPoint("CENTER", parentFrame, "CENTER", -15, -232)
 			else
-				slot:SetPoint("RIGHT", addon.itemSlots[ buttonSlots[i-1].slotID ], "RIGHT", 45, 0)
+				slot:SetPoint("RIGHT", addonFrame.itemSlots[ buttonSlots[i-1].slotID ], "RIGHT", 45, 0)
 			end
 		else
-			slot:SetPoint("TOP", addon.itemSlots[ buttonSlots[i-1].slotID ], "BOTTOM", 0, -8)
+			slot:SetPoint("TOP", addonFrame.itemSlots[ buttonSlots[i-1].slotID ], "BOTTOM", 0, -8)
 		end
 		slot:RegisterForClicks("AnyUp")
 		slot:SetScript("OnEnter", onEnter)
 		slot:SetScript("OnLeave", GameTooltip_Hide)
 		slot.OnEnter = onEnter
-		addon.itemSlots[btnData.slotID] = slot
+		addonFrame.itemSlots[btnData.slotID] = slot
 		itemSlotIcon(btnData.slotID)
 	end
 	
 	for i = MAINHANDSLOT_ENCHANT, SECONDARYHANDSLOT_ENCHANT do
-		local slot = CreateFrame("ItemButton", "test"..MAINHANDSLOT_ENCHANT, addon)
+		local slot = CreateFrame("ItemButton", "test"..MAINHANDSLOT_ENCHANT, parentFrame)
 		slot:SetHeight(20)
 		slot:SetWidth(20)
 		slot:SetNormalTexture(nil) --get rid of that tooltip border
 		if i == MAINHANDSLOT_ENCHANT then
-			slot:SetPoint("CENTER", addon.itemSlots[16], "CENTER", 0, -33) --mainhand
+			slot:SetPoint("CENTER", addonFrame.itemSlots[16], "CENTER", 0, -33) --mainhand
 		else
-			slot:SetPoint("CENTER", addon.itemSlots[17], "CENTER", 0, -33) --mainhand
+			slot:SetPoint("CENTER", addonFrame.itemSlots[17], "CENTER", 0, -33) --mainhand
 		end
 		slot:RegisterForClicks("AnyUp")
 		slot:SetScript("OnEnter", onEnter)
 		slot:SetScript("OnLeave", GameTooltip_Hide)
 		slot.OnEnter = onEnter
-		addon.itemSlots[i] = slot
+		addonFrame.itemSlots[i] = slot
 		itemSlotIcon(i)
 	end
 
-	local model = CreateFrame("DressUpModel", nil, addon)
+	local model = CreateFrame("DressUpModel", nil, parentFrame)
 	model:SetPoint("CENTER")
 	model:SetSize(300,400)
 	model:SetUnit("player")
@@ -366,7 +359,7 @@ function addon:SetupMogFrame()
 	model:SetPosition(0,0,0)
 	model.defaultPosX, model.defaultPosY, model.defaultPosZ, model.yaw = 0, 0, 0, 0
 	model:SetLight(true, false, -1, 0, 0, .7, .7, .7, .7, .6, 1, 1, 1)
-	addon.model = model
+	addonFrame.model = model
 
 	--set the pan and zoom limits
 	--https://github.com/Gethe/wow-ui-source/blob/f836c162afa2ccb5e42ef4a6c386a438608f4dd3/AddOns/Blizzard_Collections/Blizzard_Wardrobe.lua
@@ -429,11 +422,11 @@ function addon:SetupMogFrame()
 		self:SetPosition(posX, posY, posZ)
 	end)
 	
-	local modelbg = addon:CreateTexture(nil,"BACKGROUND");
+	local modelbg = parentFrame:CreateTexture(nil,"BACKGROUND");
 	modelbg:SetAllPoints(model);
 	modelbg:SetColorTexture(0.3, 0.3, 0.3, 0.2)
 
-    local saveButton = CreateFrame("Button", nil, addon, "UIPanelButtonTemplate")
+    local saveButton = CreateFrame("Button", nil, parentFrame, "UIPanelButtonTemplate")
 	saveButton.Text:SetFontObject("GameFontNormal")
 	saveButton:SetWidth(80)
 	saveButton:SetHeight(30)
@@ -442,33 +435,65 @@ function addon:SetupMogFrame()
     saveButton:SetScript("OnClick", function()
 		StaticPopup_Show("XANMOGWARDROBE_SAVEOUTFIT")
     end)
-	addon.saveButton = saveButton
+	addonFrame.saveButton = saveButton
 	
-    local loadButton = CreateFrame("Button", nil, addon, "UIPanelButtonTemplate")
+    local loadButton = CreateFrame("Button", nil, parentFrame, "UIPanelButtonTemplate")
 	loadButton.Text:SetFontObject("GameFontNormal")
 	loadButton:SetWidth(80)
 	loadButton:SetHeight(30)
     loadButton:SetText(L.Load)
     loadButton:SetPoint("BOTTOMRIGHT", -10, 13)
     loadButton:SetScript("OnClick", function()
-		print('load')
+		addon.LoaderFrame:Show()
     end)
-	addon.loadButton = loadButton
+	addonFrame.loadButton = loadButton
 	
-	addon:HookScript("OnHide",function() 
+	parentFrame:HookScript("OnHide",function() 
 		if InspectFrame and InspectFrame:IsShown() then
 			--if you don't close it this way it still thinks it's open because it's a primary UI Frame from UIPanelWindows
 			HideUIPanel(InspectFrame)
 		end
 	end)
 	
-	addon:Hide()
+	addonFrame:Hide()
+end
+
+function addon:SetupLoaderFrame()
+
+	local loaderFrame = AceGUI:Create("Window")
+	local parentFrame = loaderFrame.frame
+	
+	addon.LoaderFrame = loaderFrame
+	addon.LoaderFrame.parentFrame = parentFrame
+
+	parentFrame:SetParent(addon.WardrobeFrame.parentFrame)
+	loaderFrame:SetPoint("LEFT", addon.WardrobeFrame.parentFrame, "RIGHT")
+	
+	loaderFrame:SetTitle(L.LoadSet)
+	loaderFrame:SetHeight(500)
+	loaderFrame:SetWidth(380)
+	loaderFrame:EnableResize(false)
+	parentFrame:EnableMouseWheel(true) --parent frame
+	
+	local scrollframe = AceGUI:Create("ScrollFrame");
+	scrollframe:SetFullWidth(true)
+	scrollframe:SetLayout("Flow")
+
+	addon.LoaderFrame.scrollframe = scrollframe
+	loaderFrame:AddChild(scrollframe)
+
+	hooksecurefunc(loaderFrame, "Show" ,function()
+		--self:DisplayList()
+	end)
+	
+	loaderFrame:Hide()
+	
 end
 
 function addon:UpdateModel(itemPool)
 	if not itemPool then return end
 	
-	addon.model:Undress() --make sure they are undressed
+	addon.WardrobeFrame.model:Undress() --make sure they are undressed
 	
 	--first lets clear them
 	for i, mogSlot in ipairs(transMogSlots) do
@@ -484,7 +509,7 @@ function addon:UpdateModel(itemPool)
 		itemSlotIcon(itemPool[i].slotID, itemPool[i].icon, itemPool[i].itemLink, itemPool[i].illusionID)
 		--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
 		--additional the secondary parameter allows you to load directly into a slot like, "MAINHANDSLOT" or "SECONDARYHANDSLOT"
-		addon.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
+		addon.WardrobeFrame.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
 		--Debug("TryOn", UnitName("target"), itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].slotID, itemPool[i].itemLink, itemPool[i].icon)
 	end
 end
@@ -550,12 +575,12 @@ function addon:LoadInspectedCharacter()
 	end
 
 	--store it for use in other areas
-	addon.itemPool = itemPool
+	addon.WardrobeFrame.itemPool = itemPool
 	
 	--display after 1 second, for some reason we have to force the TryOn twice.  I can't figure out why.  I think it has to do with ItemCache
 	C_Timer.After(0.2, function() addon:UpdateModel(itemPool) end)
 	
-	addon:Show()
+	addon.WardrobeFrame:Show()
 end
 
 function addon:AddInspectButton()
@@ -590,6 +615,7 @@ function addon:PLAYER_LOGIN()
 	XML_DB = XML_DB or {}
 	
 	addon:SetupMogFrame()
+	addon:SetupLoaderFrame()
 	
 	if InspectFrame and not addon.inspectButton then
 		addon:AddInspectButton()
