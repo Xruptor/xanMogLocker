@@ -40,6 +40,9 @@ local transMogSlots = {
 	[19] = {canTransMog = true, globalString = "Tabard", invSlotName = "TABARDSLOT", slotID = INVSLOT_TABARD, buttonPos = 6},
 }
 
+local MAINHANDSLOT_ENCHANT = 98
+local SECONDARYHANDSLOT_ENCHANT = 99
+
 local RaceIDs = {
     Human = 1,
     Orc = 2,
@@ -108,7 +111,7 @@ local SET_MODEL_PAN_AND_ZOOM_LIMITS = {
 	["Vulpera3"] = { maxZoom = 2.9605259895325, panMaxLeft = -0.26144406199455, panMaxRight = 0.30945864319801, panMaxTop = -0.07625275105238, panMaxBottom = -1.2928194999695 },
 }
 
-StaticPopupDialogs["XANMOGLOCKER_ALERT"] = {
+StaticPopupDialogs["XANMOGWARDROBE_ALERT"] = {
 	text = "",
 	button1 = OKAY,
 	hasEditBox = false,
@@ -121,10 +124,11 @@ StaticPopupDialogs["XANMOGLOCKER_ALERT"] = {
 }
 
 local function showAlert(msg)
-	StaticPopup_Show("XANMOGLOCKER_ALERT", '', '', msg)
+	StaticPopup_Show("XANMOGWARDROBE_ALERT", '', '', msg)
 end
 
 local function getItemMatrix(itemID)
+	if not itemID then return nil end
 	local name, itemLink, quality, itemLevel, reqLevel, class, subClass, maxStack, equipSlot, icon, sellPrice, classID, subClassID, bindType, expansion, itemSetID, isReagent = GetItemInfo(itemID)
 	if name then
 		return {
@@ -147,10 +151,43 @@ local function getItemMatrix(itemID)
 			isReagent = isReagent,
 		}
 	end
+	return nil
 end
 
-local function itemSlotIcon(slotID, texture, itemLink)
+--HandleModifiedItemClick
+
+local function itemSlotIcon(slotID, texture, itemLink, illusionID)
 	if not slotID or not addon.itemSlots[slotID] then return end
+	--check for illusions
+	if illusionID or slotID == MAINHANDSLOT_ENCHANT or slotID == SECONDARYHANDSLOT_ENCHANT then
+		local tmpSlot
+		if slotID == INVSLOT_MAINHAND then
+			tmpSlot = MAINHANDSLOT_ENCHANT
+		elseif slotID == INVSLOT_OFFHAND then
+			tmpSlot = SECONDARYHANDSLOT_ENCHANT
+		else
+			tmpSlot = slotID
+		end
+		if not tmpSlot then return end
+		
+		--set the default no enchant cancel image
+		addon.itemSlots[tmpSlot].icon:SetTexture("Interface\\Transmogrify\\Textures.png")
+		addon.itemSlots[tmpSlot].icon:SetTexCoord(0.28906250, 0.55468750, 0.51171875, 0.57812500);
+		addon.itemSlots[tmpSlot].slotName = WEAPON_ENCHANTMENT
+		addon.itemSlots[tmpSlot].itemLink = nil --do not do a link, instead show illusion name
+		
+		if illusionID then
+			local visualID, name, transmogIllusionLink = C_TransmogCollection.GetIllusionSourceInfo(illusionID)
+			if name and transmogIllusionLink then
+				addon.itemSlots[tmpSlot].icon:SetTexture(134941) --put the enchant scroll picture
+				addon.itemSlots[tmpSlot].icon:SetTexCoord(0,1,0,1) --you have to use this to reset the texture coords
+				addon.itemSlots[tmpSlot].slotName = string.format(TRANSMOGRIFIED_ENCHANT, name)
+			end
+		else
+			--we don't have an illusion which means we probably used the dummy slots MAINHANDSLOT_ENCHANT and SECONDARYHANDSLOT_ENCHANT
+			return
+		end
+	end
 	--if the texture fails, then load our current character texture
 	local slotTexture = select(2, GetInventorySlotInfo( transMogSlots[slotID].invSlotName ))
 	addon.itemSlots[slotID].icon:SetTexture(texture or slotTexture)
@@ -203,7 +240,7 @@ local function saveOutfit(saveName)
 	showAlert(L.YesSave)
 end
 
-StaticPopupDialogs["XANMOGLOCKER_SAVEOUTFIT"] = {
+StaticPopupDialogs["XANMOGWARDROBE_SAVEOUTFIT"] = {
 	text = L.SaveOutfit ,
 	button1 = "Save",
 	button2 = "Cancel",
@@ -287,7 +324,7 @@ function addon:SetupMogFrame()
 			slot:SetPoint("TOPRIGHT", addon, "TOPRIGHT", -20, -85)
 		elseif i >= 12 then
 			if i == 12 then
-				slot:SetPoint("CENTER", addon, "CENTER", -15, -235)
+				slot:SetPoint("CENTER", addon, "CENTER", -15, -232)
 			else
 				slot:SetPoint("RIGHT", addon.itemSlots[ buttonSlots[i-1].slotID ], "RIGHT", 45, 0)
 			end
@@ -302,6 +339,24 @@ function addon:SetupMogFrame()
 		itemSlotIcon(btnData.slotID)
 	end
 	
+	for i = MAINHANDSLOT_ENCHANT, SECONDARYHANDSLOT_ENCHANT do
+		local slot = CreateFrame("ItemButton", "test"..MAINHANDSLOT_ENCHANT, addon)
+		slot:SetHeight(20)
+		slot:SetWidth(20)
+		slot:SetNormalTexture(nil) --get rid of that tooltip border
+		if i == MAINHANDSLOT_ENCHANT then
+			slot:SetPoint("CENTER", addon.itemSlots[16], "CENTER", 0, -33) --mainhand
+		else
+			slot:SetPoint("CENTER", addon.itemSlots[17], "CENTER", 0, -33) --mainhand
+		end
+		slot:RegisterForClicks("AnyUp")
+		slot:SetScript("OnEnter", onEnter)
+		slot:SetScript("OnLeave", GameTooltip_Hide)
+		slot.OnEnter = onEnter
+		addon.itemSlots[i] = slot
+		itemSlotIcon(i)
+	end
+
 	local model = CreateFrame("DressUpModel", nil, addon)
 	model:SetPoint("CENTER")
 	model:SetSize(300,400)
@@ -385,7 +440,7 @@ function addon:SetupMogFrame()
     saveButton:SetText(L.Save)
     saveButton:SetPoint("BOTTOMLEFT", 10, 13)
     saveButton:SetScript("OnClick", function()
-		StaticPopup_Show("XANMOGLOCKER_SAVEOUTFIT")
+		StaticPopup_Show("XANMOGWARDROBE_SAVEOUTFIT")
     end)
 	addon.saveButton = saveButton
 	
@@ -421,13 +476,28 @@ function addon:UpdateModel(itemPool)
 			itemSlotIcon(mogSlot.slotID)
 		end
 	end
+	itemSlotIcon(MAINHANDSLOT_ENCHANT)
+	itemSlotIcon(SECONDARYHANDSLOT_ENCHANT)
+
 	--load the items
 	for i=1, #itemPool do
-		itemSlotIcon(itemPool[i].slotID, itemPool[i].icon, itemPool[i].itemLink)
+		itemSlotIcon(itemPool[i].slotID, itemPool[i].icon, itemPool[i].itemLink, itemPool[i].illusionID)
 		--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
 		--additional the secondary parameter allows you to load directly into a slot like, "MAINHANDSLOT" or "SECONDARYHANDSLOT"
 		addon.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
 		--Debug("TryOn", UnitName("target"), itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].slotID, itemPool[i].itemLink, itemPool[i].icon)
+	end
+end
+
+local function doBackupItemGrab(itemPool, slotID, transMogID, illusionID)
+	if transMogID and transMogID ~= NO_TRANSMOG_SOURCE_ID then
+		local link = GetInventoryItemLink("target", slotID)
+		if link then
+			local itemMatrix = getItemMatrix(link) or getItemMatrix(GetShortItemID(link))
+			if itemMatrix then
+				table.insert(itemPool, {itemLink=itemMatrix.itemLink, slotID=slotID, transMogID=transMogID, icon=itemMatrix.icon, illusionID=illusionID})
+			end
+		end
 	end
 end
 
@@ -448,10 +518,14 @@ function addon:LoadInspectedCharacter()
 				--Debug(categoryID, visualID, icon, sourceIndex, GetShortItemID(sourceIndex), itemLink, GetShortItemID(itemLink))
 				--categoryID is also slotID
 				table.insert(itemPool, {itemLink=itemLink, slotID=i, transMogID=sourceIndex, icon=icon})
+			else
+				doBackupItemGrab(itemPool, i, sourceIndex)
 			end
 		end
 	end
 
+	--local link = GetInventoryItemLink("target", slotId)
+	
     --TRANSMOGRIFIED = "Transmogrified to:\n%s";
     --TRANSMOGRIFIED_ENCHANT = "Illusion: %s";
     --TRANSMOGRIFIED_HEADER = "Transmogrified to:";
@@ -464,11 +538,15 @@ function addon:LoadInspectedCharacter()
 	local _, _, _, mainHandIcon, _, mainHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID])
 	if mainHandLink then
 		table.insert(itemPool, {itemLink=mainHandLink, slotID=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID], icon=mainHandIcon, illusionID=mainHandEnchant})
+	else
+		doBackupItemGrab(itemPool, mainHandSlotID, inspectSlots[mainHandSlotID], mainHandEnchant)
 	end
 	
 	local _, _, _, secondaryHandIcon, _, secondaryHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID])
 	if secondaryHandLink then
 		table.insert(itemPool, {itemLink=secondaryHandLink, slotID=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID], icon=secondaryHandIcon, illusionID=offHandEnchant})
+	else
+		doBackupItemGrab(itemPool, secondaryHandSlotID, inspectSlots[secondaryHandSlotID], offHandEnchant)
 	end
 
 	--store it for use in other areas

@@ -1,5 +1,5 @@
 ## Interface: 80300
-## Title: xanMogLocker
+## Title: xanMogWardrobe
 ## Notes: View and save the transmog set of a inspected player.
 ## Author: Xruptor
 ## Version: 1.0
@@ -13,4 +13,4 @@ libs\AceEvent-3.0\AceEvent-3.0.xml
 
 locale\enUS.lua
 
-xanMogLocker.lua
+xanMogWardrobe.lua
