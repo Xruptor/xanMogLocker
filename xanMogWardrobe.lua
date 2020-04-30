@@ -112,20 +112,19 @@ local SET_MODEL_PAN_AND_ZOOM_LIMITS = {
 	["Vulpera3"] = { maxZoom = 2.9605259895325, panMaxLeft = -0.26144406199455, panMaxRight = 0.30945864319801, panMaxTop = -0.07625275105238, panMaxBottom = -1.2928194999695 },
 }
 
-StaticPopupDialogs["XANMOGWARDROBE_ALERT"] = {
-	text = "",
-	button1 = OKAY,
-	hasEditBox = false,
-	timeout = 5,
-	hideOnEscape = 1,
-	OnShow = function (self, msg)
-		self.text:SetText(msg)
-	end,
-	whileDead = 1,
-}
-
-local function showAlert(msg)
-	StaticPopup_Show("XANMOGWARDROBE_ALERT", '', '', msg)
+local function showAlert(...)
+	local tmp = {}
+	local index = 0
+	
+	index = index + 1
+	tmp[index] = "|cFF99CC33"..ADDON_NAME.."|r:"
+	
+	for i=1, select("#", ...) do
+		index = index + 1
+		tmp[index] = tostring(select(i, ...))
+	end
+	
+	DEFAULT_CHAT_FRAME:AddMessage( table.concat(tmp, " " , 1 , index) )
 end
 
 local function getItemMatrix(itemID)
@@ -243,7 +242,7 @@ local function saveOutfit(saveName)
 	end
 	
 	table.insert(XML_DB, {name=saveName, outfit=storeOutfit, class=addon.InspectedClass})
-	showAlert(L.YesSave)
+	showAlert("[|cff33ff99"..saveName.."|r]", L.YesSave)
 end
 
 StaticPopupDialogs["XANMOGWARDROBE_SAVEOUTFIT"] = {
@@ -458,6 +457,107 @@ function addon:SetupMogFrame()
 	addonFrame:Hide()
 end
 
+
+local function AddEntry(entry, isHeader)
+	if not addon.LoaderFrame or not addon.LoaderFrame.scrollframe then return end
+	
+	local scrollFrame = addon.LoaderFrame.scrollframe
+	
+	local highlightColor = {1, 0, 0}
+	local label = AceGUI:Create("XanMogWardrobeLabel")
+
+	label.userdata.color = {1, 1, 1}
+
+	label:SetHeaderHighlight("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+	label:ToggleHeaderHighlight(false)
+
+	if isHeader then
+		label:SetText(entry.header)
+		label:SetFont(STANDARD_TEXT_FONT, 14, THICKOUTLINE)
+		label:SetFullWidth(true)
+		label:SetColor(unpack(label.userdata.color))
+		label:ApplyJustifyH("CENTER")
+		label.userdata.isHeader = true
+		label.userdata.text = entry.header
+		--label.userdata.icon = entry.icon
+		label.userdata.outfit = entry.outfit
+		
+		label:ToggleHeaderHighlight(true)
+	else
+		label:SetText(entry.name)
+		label:SetFont(STANDARD_TEXT_FONT, 14, THICKOUTLINE)
+		label:SetFullWidth(true)
+		label.userdata.color = {64/255, 224/255, 208/255} --hex: 40e0d0
+		label:SetColor(unpack(label.userdata.color))
+		label:ApplyJustifyH("LEFT")
+		--label:SetImage(entry.icon)
+		--label:SetImageSize(18, 18)
+		label.userdata.isHeader = false
+		label.userdata.text = entry.name
+		--label.userdata.icon = entry.icon
+		label.userdata.outfit = entry.outfit
+	end
+
+	label:SetCallback(
+		"OnEnter",
+		function (widget, sometable)
+			if not label.userdata.isHeader then
+				label:SetColor(unpack(highlightColor))
+			end
+		end)
+	label:SetCallback(
+		"OnLeave",
+		function (widget, sometable)
+			label:SetColor(unpack(label.userdata.color))
+		end)
+
+	scrollFrame:AddChild(label)
+end
+
+local function DisplayList()
+	if not addon.LoaderFrame or not addon.LoaderFrame.scrollframe then return end
+	
+	local scrollFrame = addon.LoaderFrame.scrollframe
+	
+	scrollFrame:ReleaseChildren() --clear out the scrollframe
+	
+	local usrData = {}
+	local tempList = {}
+
+	for unitObj, objData in pairs(XML_DB) do
+		if objData.class and objData.name and not tempList[objData.class..objData.name] then
+			table.insert(usrData, { header=objData.class, name=objData.name, outfit=objData.outfit} )
+			tempList[objData.class..objData.name] = true
+		end
+	end
+	
+	if table.getn(usrData) > 0 then
+	
+		--sort the list by header, name
+		table.sort(usrData, function(a, b)
+			if a.header  == b.header then
+				return a.name < b.name;
+			end
+			return a.header < b.header;
+		end)
+	
+		local lastHeader = ""
+		for i=1, #usrData do
+			if lastHeader ~= usrData[i].header then
+				AddEntry(usrData[i], true) --add header
+				AddEntry(usrData[i], false) --add entry
+				lastHeader = usrData[i].header
+			else
+				AddEntry(usrData[i], false) --add entry
+			end
+		end
+		scrollFrame.frame:Show()
+	else
+		scrollFrame.frame:Hide()
+	end
+	
+end
+
 function addon:SetupLoaderFrame()
 
 	local loaderFrame = AceGUI:Create("Window")
@@ -483,7 +583,7 @@ function addon:SetupLoaderFrame()
 	loaderFrame:AddChild(scrollframe)
 
 	hooksecurefunc(loaderFrame, "Show" ,function()
-		--self:DisplayList()
+		DisplayList()
 	end)
 	
 	loaderFrame:Hide()
