@@ -44,6 +44,8 @@ local transMogSlots = {
 local MAINHANDSLOT_ENCHANT = 98
 local SECONDARYHANDSLOT_ENCHANT = 99
 
+--https://wow.gamepedia.com/RaceId
+
 local RaceIDs = {
     Human = 1,
     Orc = 2,
@@ -58,6 +60,21 @@ local RaceIDs = {
     Draenei = 11,
     Worgen = 22,
     Pandaren = 24,
+	LightforgedDraenei = 30,
+	HighmountainTauren = 28,
+	Nightborne = 27,
+	VoidElf = 29,
+	MagharOrc = 36,
+	DarkIronDwarf = 34,
+	KulTiran = 32,
+	ZandalariTroll = 31,
+	Mechagnome = 37,
+	Vulpera = 35,
+}
+
+local raceGender = {
+    [0] = MALE,
+    [1] = FEMALE,
 }
 
 --update this from here Blizzard_Wardrobe.lua
@@ -153,8 +170,6 @@ local function getItemMatrix(itemID)
 	end
 	return nil
 end
-
---HandleModifiedItemClick
 
 local function itemSlotIcon(slotID, texture, itemLink, illusionID)
 	if not slotID or not addon.WardrobeFrame.itemSlots or not addon.WardrobeFrame.itemSlots[slotID] then return end
@@ -267,19 +282,16 @@ StaticPopupDialogs["XANMOGWARDROBE_SAVEOUTFIT"] = {
 function addon:SetupMogFrame()
 
 	local addonFrame = AceGUI:Create("Window")
-	local parentFrame = addonFrame.frame
-	
 	addon.WardrobeFrame = addonFrame
-	addon.WardrobeFrame.parentFrame = parentFrame
-	
+
 	addonFrame:SetTitle(ADDON_NAME)
 	addonFrame:SetWidth(450)
 	addonFrame:SetHeight(570)
 	
 	addonFrame:EnableResize(false)
-	parentFrame:EnableMouseWheel(true) --parent frame
-	parentFrame:SetClampedToScreen(true) --parent frame
-	parentFrame:SetFrameStrata("DIALOG")
+	addonFrame.frame:EnableMouseWheel(true)
+	addonFrame.frame:SetClampedToScreen(true)
+	addonFrame.frame:SetFrameStrata("DIALOG")
 	
 	addonFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 
@@ -308,15 +320,15 @@ function addon:SetupMogFrame()
 	table.sort(buttonSlots, function(a,b) return (a.buttonPos < b.buttonPos) end) --order by buttonPos
 
 	for i, btnData in ipairs(buttonSlots) do
-		local slot = CreateFrame("ItemButton", nil, parentFrame)
+		local slot = CreateFrame("ItemButton", nil, addonFrame.frame)
 		slot.info = btnData
 		if i == 1 then
-			slot:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 20, -85)
+			slot:SetPoint("TOPLEFT", addonFrame.frame, "TOPLEFT", 20, -85)
 		elseif i == 8 then
-			slot:SetPoint("TOPRIGHT", parentFrame, "TOPRIGHT", -20, -85)
+			slot:SetPoint("TOPRIGHT", addonFrame.frame, "TOPRIGHT", -20, -85)
 		elseif i >= 12 then
 			if i == 12 then
-				slot:SetPoint("CENTER", parentFrame, "CENTER", -15, -232)
+				slot:SetPoint("CENTER", addonFrame.frame, "CENTER", -15, -232)
 			else
 				slot:SetPoint("RIGHT", addonFrame.itemSlots[ buttonSlots[i-1].slotID ], "RIGHT", 45, 0)
 			end
@@ -332,7 +344,7 @@ function addon:SetupMogFrame()
 	end
 	
 	for i = MAINHANDSLOT_ENCHANT, SECONDARYHANDSLOT_ENCHANT do
-		local slot = CreateFrame("ItemButton", "test"..MAINHANDSLOT_ENCHANT, parentFrame)
+		local slot = CreateFrame("ItemButton", "test"..MAINHANDSLOT_ENCHANT, addonFrame.frame)
 		slot:SetHeight(20)
 		slot:SetWidth(20)
 		slot:SetNormalTexture(nil) --get rid of that tooltip border
@@ -349,7 +361,7 @@ function addon:SetupMogFrame()
 		itemSlotIcon(i)
 	end
 
-	local model = CreateFrame("DressUpModel", nil, parentFrame)
+	local model = CreateFrame("DressUpModel", nil, addonFrame.frame)
 	model:SetPoint("CENTER")
 	model:SetSize(300,400)
 	model:SetUnit("player")
@@ -421,11 +433,11 @@ function addon:SetupMogFrame()
 		self:SetPosition(posX, posY, posZ)
 	end)
 	
-	local modelbg = parentFrame:CreateTexture(nil,"BACKGROUND");
+	local modelbg = addonFrame.frame:CreateTexture(nil,"BACKGROUND");
 	modelbg:SetAllPoints(model);
 	modelbg:SetColorTexture(0.3, 0.3, 0.3, 0.2)
 
-    local saveButton = CreateFrame("Button", nil, parentFrame, "UIPanelButtonTemplate")
+    local saveButton = CreateFrame("Button", nil, addonFrame.frame, "UIPanelButtonTemplate")
 	saveButton.Text:SetFontObject("GameFontNormal")
 	saveButton:SetWidth(80)
 	saveButton:SetHeight(30)
@@ -436,7 +448,7 @@ function addon:SetupMogFrame()
     end)
 	addonFrame.saveButton = saveButton
 	
-    local loadButton = CreateFrame("Button", nil, parentFrame, "UIPanelButtonTemplate")
+    local loadButton = CreateFrame("Button", nil, addonFrame.frame, "UIPanelButtonTemplate")
 	loadButton.Text:SetFontObject("GameFontNormal")
 	loadButton:SetWidth(80)
 	loadButton:SetHeight(30)
@@ -447,14 +459,38 @@ function addon:SetupMogFrame()
     end)
 	addonFrame.loadButton = loadButton
 	
-	parentFrame:HookScript("OnHide",function() 
+	local raceDDList = AceGUI:Create("Dropdown")
+	addonFrame.raceDDList = raceDDList
+	raceDDList:SetWidth(300)
+	raceDDList:ClearAllPoints()
+	raceDDList.frame:SetParent(addonFrame.frame)
+	raceDDList:SetPoint("CENTER", addonFrame.frame, "TOP", 0, -50)
+	
+	local tmp = {}
+	for k, v in pairs(RaceIDs) do
+		tmp[k..";"..v..";0;2" ] = k.." - Male"  --UnitSex is 2 for male but 0 for player model SetCustomRace
+		tmp[k..";"..v..";1;3"] = k.." - Female" --UnitSex is 3 for female but 1 for player model SetCustomRace
+	end
+	table.sort(tmp, function(a,b) return (a < b) end)
+	raceDDList:SetList(tmp)
+	
+	raceDDList:SetCallback(
+		"OnValueChanged",
+		function (self, event, value, checked)
+			addonFrame.selectedRace = value
+			addon:UpdateModelRace()
+		end)
+
+	addonFrame.frame:HookScript("OnHide",function() 
 		if InspectFrame and InspectFrame:IsShown() then
 			--if you don't close it this way it still thinks it's open because it's a primary UI Frame from UIPanelWindows
 			HideUIPanel(InspectFrame)
+			addonFrame.selectedRace = nil --default to our characters race
 		end
 	end)
 	
 	addonFrame:Hide()
+	
 end
 
 
@@ -510,6 +546,11 @@ local function AddEntry(entry, isHeader)
 		function (widget, sometable)
 			label:SetColor(unpack(label.userdata.color))
 		end)
+	label:SetCallback(
+		"OnClick",
+		function (widget, sometable)
+			addon:UpdateModel(label.userdata.outfit, true)
+		end)
 
 	scrollFrame:AddChild(label)
 end
@@ -558,22 +599,83 @@ local function DisplayList()
 	
 end
 
+function addon:UpdateModelRace()
+	if not addon.WardrobeFrame.selectedRace then return end
+
+	local modelName, modelNumID, modelSex, unitZoomSex = strsplit(';', addon.WardrobeFrame.selectedRace)
+	
+	if modelName and modelNumID and modelSex and unitZoomSex then
+		--change the model
+		--addon.WardrobeFrame.model:SetUnit("none")
+		--addon.WardrobeFrame.model:ClearModel()
+		--addon.WardrobeFrame.model:SetDisplayInfo(968705)
+		addon.WardrobeFrame.model:SetCustomRace(tonumber(modelNumID), tonumber(modelSex))
+		--addon.WardrobeFrame.model:Undress()
+		--addon.WardrobeFrame.model:SetModel(917116)
+		--addon.WardrobeFrame.model:RefreshUnit()
+		--myModel:GetModelFileID();
+		--addon.WardrobeFrame.model:Undress()
+		--addon.WardrobeFrame.model:TryOn(19019)
+		--addon.WardrobeFrame.model:RefreshCamera()
+		--addon.WardrobeFrame.model:ClearModel()
+		--addon.WardrobeFrame.model:SetUnit("player")
+		--addon.WardrobeFrame.model:RefreshUnit()
+	end
+	
+	
+	-- model:GetModelFileID() 
+
+	-- ModelFileIDs = {
+		-- female = {
+			-- human = 1000764,
+			-- orc = 949470,
+			-- dwarf = 950080,
+			-- nightelf = 921844,
+			-- undead = 997378,
+			-- tauren = 986648,
+			-- gnome = 940356,
+			-- troll = 1018060,
+			-- goblin = 119369,
+			-- bloodelf = 110258,
+			-- draenei = 1022598,
+		-- },
+		
+		-- male = {
+			-- human = 1011653,
+			-- orc = 917116,
+			-- dwarf = 878772,
+			-- nightelf = 974343,
+			-- undead = 959310,
+			-- tauren = 968705,
+			-- gnome = 900914,
+			-- troll = 1022938,
+			-- goblin = 119376,
+			-- bloodelf = 1100087,
+			-- draenei = 1005887,
+		-- }
+	-- }
+
+end
+
 function addon:SetupLoaderFrame()
 
 	local loaderFrame = AceGUI:Create("Window")
-	local parentFrame = loaderFrame.frame
-	
-	addon.LoaderFrame = loaderFrame
-	addon.LoaderFrame.parentFrame = parentFrame
 
-	parentFrame:SetParent(addon.WardrobeFrame.parentFrame)
-	loaderFrame:SetPoint("LEFT", addon.WardrobeFrame.parentFrame, "RIGHT")
+	addon.LoaderFrame = loaderFrame
+	loaderFrame.frame:SetParent(addon.WardrobeFrame.frame)
+	loaderFrame.frame:ClearAllPoints() --very important, otherwise mouse issues happen
+	loaderFrame.frame:SetPoint("LEFT", addon.WardrobeFrame.frame, "RIGHT")
 	
+	loaderFrame.title:SetScript("OnMouseDown", nil)
+	loaderFrame.title:SetScript("OnMouseUp", nil)
+		
 	loaderFrame:SetTitle(L.LoadSet)
 	loaderFrame:SetHeight(500)
 	loaderFrame:SetWidth(380)
 	loaderFrame:EnableResize(false)
-	parentFrame:EnableMouseWheel(true) --parent frame
+	loaderFrame.frame:EnableMouseWheel(true)
+	loaderFrame.frame:SetClampedToScreen(true)
+	loaderFrame.frame:SetFrameStrata("DIALOG")
 	
 	local scrollframe = AceGUI:Create("ScrollFrame");
 	scrollframe:SetFullWidth(true)
@@ -590,10 +692,43 @@ function addon:SetupLoaderFrame()
 	
 end
 
-function addon:UpdateModel(itemPool)
+function addon:UpdateModel(itemPool, isLoaded, numTries)
 	if not itemPool then return end
 	
 	addon.WardrobeFrame.model:Undress() --make sure they are undressed
+	
+	--loaded manually from display list
+	if isLoaded then
+		local tmpPool = {}
+		local refresh = false
+		
+		for i=1, #itemPool do
+			local itemID, slotID, transMogID, illusionID = strsplit(';', itemPool[i])
+			--Debug(1, itemID, slotID, transMogID, illusionID)
+			if itemID then
+				local itemMatrix = getItemMatrix(itemID) or getItemMatrix(GetShortItemID(itemID))
+				if itemMatrix then
+					--Debug(2, itemMatrix.itemLink, slotID, transMogID, itemMatrix.icon, illusionID)
+					table.insert(tmpPool, {itemLink=itemMatrix.itemLink, slotID=tonumber(slotID) or slotID, transMogID=tonumber(transMogID) or transMogID, icon=itemMatrix.icon, illusionID=tonumber(illusionID) or illusionID})
+				else
+					refresh = true
+				end
+			end
+		end
+		
+		--some items weren't yet queried from server
+		if refresh then
+			if not numTries or numTries < 3 then
+				C_Timer.After(0.2, function() addon:UpdateModel(itemPool, true, (numTries or 0) + 1) end)
+			elseif numTries and numTries > 3 then
+				showAlert(L.NoLoad)
+			end
+			return
+		end
+		
+		--transfer it over
+		itemPool = tmpPool
+	end
 	
 	--first lets clear them
 	for i, mogSlot in ipairs(transMogSlots) do
@@ -609,7 +744,13 @@ function addon:UpdateModel(itemPool)
 		itemSlotIcon(itemPool[i].slotID, itemPool[i].icon, itemPool[i].itemLink, itemPool[i].illusionID)
 		--the transMogID loads additional apperances like illusions for the artifacts, whereas giving just the regular itemlink doesn't
 		--additional the secondary parameter allows you to load directly into a slot like, "MAINHANDSLOT" or "SECONDARYHANDSLOT"
-		addon.WardrobeFrame.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
+		if itemPool[i].slotID and tonumber(itemPool[i].slotID) then
+			if itemPool[i].transMogID then
+				addon.WardrobeFrame.model:TryOn(itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
+			elseif itemPool[i].itemLink then
+				addon.WardrobeFrame.model:TryOn(itemPool[i].itemLink, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].illusionID)
+			end
+		end
 		--Debug("TryOn", UnitName("target"), itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].slotID, itemPool[i].itemLink, itemPool[i].icon)
 	end
 end
@@ -659,19 +800,23 @@ function addon:LoadInspectedCharacter()
 	--we don't want to store a ILLUSION enchant if it's zero
 	if mainHandEnchant == 0 then mainHandEnchant = nil end
 	if offHandEnchant == 0 then offHandEnchant = nil end
-
-	local _, _, _, mainHandIcon, _, mainHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID])
-	if mainHandLink then
-		table.insert(itemPool, {itemLink=mainHandLink, slotID=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID], icon=mainHandIcon, illusionID=mainHandEnchant})
-	else
-		doBackupItemGrab(itemPool, mainHandSlotID, inspectSlots[mainHandSlotID], mainHandEnchant)
+	
+	if mainHandSlotID and inspectSlots[mainHandSlotID] then
+		local _, _, _, mainHandIcon, _, mainHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[mainHandSlotID])
+		if mainHandLink then
+			table.insert(itemPool, {itemLink=mainHandLink, slotID=mainHandSlotID, transMogID=inspectSlots[mainHandSlotID], icon=mainHandIcon, illusionID=mainHandEnchant})
+		else
+			doBackupItemGrab(itemPool, mainHandSlotID, inspectSlots[mainHandSlotID], mainHandEnchant)
+		end
 	end
 	
-	local _, _, _, secondaryHandIcon, _, secondaryHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID])
-	if secondaryHandLink then
-		table.insert(itemPool, {itemLink=secondaryHandLink, slotID=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID], icon=secondaryHandIcon, illusionID=offHandEnchant})
-	else
-		doBackupItemGrab(itemPool, secondaryHandSlotID, inspectSlots[secondaryHandSlotID], offHandEnchant)
+	if secondaryHandSlotID and inspectSlots[secondaryHandSlotID] then
+		local _, _, _, secondaryHandIcon, _, secondaryHandLink = C_TransmogCollection.GetAppearanceSourceInfo(inspectSlots[secondaryHandSlotID])
+		if secondaryHandLink then
+			table.insert(itemPool, {itemLink=secondaryHandLink, slotID=secondaryHandSlotID, transMogID=inspectSlots[secondaryHandSlotID], icon=secondaryHandIcon, illusionID=offHandEnchant})
+		else
+			doBackupItemGrab(itemPool, secondaryHandSlotID, inspectSlots[secondaryHandSlotID], offHandEnchant)
+		end
 	end
 
 	--store it for use in other areas
@@ -721,8 +866,13 @@ function addon:PLAYER_LOGIN()
 		addon:AddInspectButton()
 	end
 
+	SLASH_XANMOGWARDROBE1 = "/xmw";
+	SlashCmdList["XANMOGWARDROBE"] = function()
+		addon.WardrobeFrame:Show()
+	end
+	
 	local ver = GetAddOnMetadata(ADDON_NAME,"Version") or '1.0'
-	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded", ADDON_NAME, ver or "1.0"))
+	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded:   /xmw", ADDON_NAME, ver or "1.0"))
 end
 
 addon:RegisterEvent("PLAYER_LOGIN")

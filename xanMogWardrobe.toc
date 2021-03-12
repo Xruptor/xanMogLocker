@@ -1,4 +1,4 @@
-## Interface: 80300
+## Interface: 90005
 ## Title: xanMogWardrobe
 ## Notes: View and save the transmog set of a inspected player.
 ## Author: Xruptor
