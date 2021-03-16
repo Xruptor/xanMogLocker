@@ -1,6 +1,6 @@
 local ADDON_NAME, addon = ...
 if not _G[ADDON_NAME] then
-	_G[ADDON_NAME] = CreateFrame("Frame", ADDON_NAME, UIParent)
+	_G[ADDON_NAME] = CreateFrame("Frame", ADDON_NAME, UIParent, BackdropTemplateMixin and "BackdropTemplate")
 end
 addon = _G[ADDON_NAME]
 
@@ -8,6 +8,28 @@ local debugf = tekDebug and tekDebug:GetFrame(ADDON_NAME)
 local function Debug(...)
     if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
 end
+
+--We need to use a customFrame since AceEvent is loaded and it takes over the RegisterEvent frames
+local eventFrame = CreateFrame("Frame", ADDON_NAME.."EventFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+	if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then
+		if event == "ADDON_LOADED" then
+			local arg1 = ...
+			if arg1 and arg1 == ADDON_NAME then
+				eventFrame:UnregisterEvent("ADDON_LOADED")
+				eventFrame:RegisterEvent("PLAYER_LOGIN")
+			end
+			return
+		end
+		if IsLoggedIn() then
+			addon:EnableAddon(event, ...)
+			eventFrame:UnregisterEvent("PLAYER_LOGIN")
+			eventFrame = nil
+		end
+		return
+	end
+end)
 
 local AceGUI = LibStub("AceGUI-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
@@ -844,28 +866,29 @@ function addon:AddInspectButton()
 	end)
 end
 
-function addon:ADDON_LOADED(event, addonName)
+function addon:INSPECT_READY()
 	if not addon.inspectButton then
-		if IsAddOnLoaded("Blizzard_InspectUI") then
+		if IsAddOnLoaded("Blizzard_InspectUI") or InspectFrame then
 			addon:AddInspectButton()
-			self:UnregisterEvent("ADDON_LOADED")
+			addon:UnregisterEvent("INSPECT_READY")
 		end
-	else
-		self:UnregisterEvent("ADDON_LOADED")
 	end
 end
 
-function addon:PLAYER_LOGIN()
-
+function addon:EnableAddon()
 	XML_DB = XML_DB or {}
+	
+	if not addon.inspectButton then
+		if IsAddOnLoaded("Blizzard_InspectUI") or InspectFrame then
+			addon:AddInspectButton()
+			return
+		end
+		addon:RegisterEvent("INSPECT_READY")
+	end
 	
 	addon:SetupMogFrame()
 	addon:SetupLoaderFrame()
 	
-	if InspectFrame and not addon.inspectButton then
-		addon:AddInspectButton()
-	end
-
 	SLASH_XANMOGWARDROBE1 = "/xmw";
 	SlashCmdList["XANMOGWARDROBE"] = function()
 		addon.WardrobeFrame:Show()
@@ -874,6 +897,3 @@ function addon:PLAYER_LOGIN()
 	local ver = GetAddOnMetadata(ADDON_NAME,"Version") or '1.0'
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded:   /xmw", ADDON_NAME, ver or "1.0"))
 end
-
-addon:RegisterEvent("PLAYER_LOGIN")
-addon:RegisterEvent("ADDON_LOADED")
