@@ -624,14 +624,14 @@ end
 function addon:UpdateModelRace()
 	if not addon.WardrobeFrame.selectedRace then return end
 
-	local modelName, modelNumID, modelSex, unitZoomSex = strsplit(';', addon.WardrobeFrame.selectedRace)
+	local modelName, modelNumID, modelSex, unitZoomSex = strsplit(';', self.WardrobeFrame.selectedRace)
 	
 	if modelName and modelNumID and modelSex and unitZoomSex then
 		--change the model
 		--addon.WardrobeFrame.model:SetUnit("none")
 		--addon.WardrobeFrame.model:ClearModel()
 		--addon.WardrobeFrame.model:SetDisplayInfo(968705)
-		addon.WardrobeFrame.model:SetCustomRace(tonumber(modelNumID), tonumber(modelSex))
+		self.WardrobeFrame.model:SetCustomRace(tonumber(modelNumID), tonumber(modelSex))
 		--addon.WardrobeFrame.model:Undress()
 		--addon.WardrobeFrame.model:SetModel(917116)
 		--addon.WardrobeFrame.model:RefreshUnit()
@@ -644,6 +644,10 @@ function addon:UpdateModelRace()
 		--addon.WardrobeFrame.model:RefreshUnit()
 	end
 	
+	if self.WardrobeFrame.itemPool then
+		--display after 1 second, for some reason we have to force the TryOn twice.  I can't figure out why.  I think it has to do with ItemCache
+		C_Timer.After(0.2, function() self:UpdateModel(self.WardrobeFrame.itemPool) end)
+	end
 	
 	-- model:GetModelFileID() 
 
@@ -750,6 +754,9 @@ function addon:UpdateModel(itemPool, isLoaded, numTries)
 		
 		--transfer it over
 		itemPool = tmpPool
+		
+		--store it for use in other areas
+		self.WardrobeFrame.itemPool = itemPool
 	end
 	
 	--first lets clear them
@@ -775,6 +782,7 @@ function addon:UpdateModel(itemPool, isLoaded, numTries)
 		end
 		--Debug("TryOn", UnitName("target"), itemPool[i].transMogID, transMogSlots[itemPool[i].slotID].invSlotName, itemPool[i].slotID, itemPool[i].itemLink, itemPool[i].icon)
 	end
+	
 end
 
 local function doBackupItemGrab(itemPool, slotID, transMogID, illusionID)
